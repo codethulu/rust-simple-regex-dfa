@@ -1,112 +1,114 @@
-//program to confirm if string matches the regex pattern
-use std::fmt;
-
-struct Regex {
-    p: String,
-    t: String,
+#[derive(PartialEq)]
+enum StateType {
+    CHAR,
+    LOOP,
 }
-impl fmt::Debug for Regex {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Regex")
-         .field("PATTERN", &self.p)
-         .field("TYPE", &self.t)
-         .finish()
-    }
+struct State {
+    e: u8,
+    accepts: bool,
+    kind: StateType
 }
 
-struct Solution {}
 impl Solution {
-    pub fn is_match(s: String, p: String) -> bool {
-
-        //set regex_instructions to get instruction vector
-        let regex_instructions: Vec<Regex> = get_instruction_vector(p);
+    fn new_nfa(p: &[u8]) -> Vec<State> {
+        let mut nfa = Vec::new();
+        let mut i = 0;
+        while i < p.len() {
+            if p[i] == b'*' {
+                i += 1;
+                continue;
+            }
+            if i + 1 < p.len() && p[i+1] == b'*' {
+                nfa.push(State{e: p[i], accepts: false, kind: StateType::LOOP});
+                i += 2;
+            } else {
+                nfa.push(State{e: p[i], accepts: false, kind: StateType::CHAR});
+                i += 1;
+            }
+        }
         
-        //get first regex instruction
-        //iterate over characters in string
-        let mut j = 0;
-        let mut regex_instruction = &regex_instructions[j];
-        let mut str: String = regex_instruction.p.clone();
+        for state in nfa.iter_mut().rev() {
+            state.accepts = true;
+            if let StateType::CHAR = state.kind {
+                break;
+            }
+        }
         
-        for (i, c) in s.chars().enumerate() {
-            if c == str.chars().nth(0).unwrap() || str.chars().nth(0).unwrap()=='.' { str.remove(0); } 
-            println!("i:{} c :{}", i,c);
-          
-            //if string is empty and regex instruction is a loop, increment j
-            if str.is_empty() {
-                if j == regex_instructions.len() - 1 && i == s.len() - 1 { return true; }
-             
+        return nfa;
+    }
+    
+    fn run_nfa(nfa: &[State], s: &[u8]) -> bool {
 
-                //if regex instruction is a LOOP, and next character in s is same as c then str = regex instruction.p
-                if regex_instruction.t == "LOOP" && (s.chars().nth(1).unwrap() == c || regex_instruction.p.chars().nth(0).unwrap() == '.') {
-                    str = regex_instruction.p.clone();
-                } else {
-                    j += 1;
-                    if j >= regex_instructions.len() {return false;}
-                    regex_instruction = &regex_instructions[j];
-                    str = regex_instruction.p.clone();
+        //return if a is same as b or a is b'.'
+        fn is_same(a: u8, b: u8) -> bool {
+            (a == b) || (a == b'.')
+        }
+        if nfa.is_empty() {
+            //if NFA empty and string is empty, then return true
+            return s.is_empty();
+        } else if s.is_empty() {
+            //does NFA accept empty string?
+            return (nfa[0].kind == StateType::LOOP && nfa[0].accepts);
+        }
+        
+        let mut curr_states = vec![false; nfa.len()];
+        curr_states[0] = true;
+        
+        for (i, c) in s.iter().enumerate() {
+            let is_last_char = (i == s.len() - 1);
+            for (j, state) in nfa.iter().enumerate().rev() {
+                if !curr_states[j] {
+                    continue;
                 }
-            } else if regex_instruction.t=="LOOP"{
-                j += 1;
-                if j >= regex_instructions.len() {return false;}
-                regex_instruction = &regex_instructions[j];
-                str = regex_instruction.p.clone();
-
+                match state.kind {
+                    StateType::CHAR => {
+                        curr_states[j] = false;
+                        if is_same(state.e, *c) {
+                            if state.accepts && is_last_char {
+                                return true;
+                            } 
+                            if j != nfa.len() - 1 {
+                                curr_states[j+1] = true;
+                            }
+                        }
+                    }
+                    StateType::LOOP => {
+                        for k in j..nfa.len() {
+                            let next_state = &nfa[k];
+                            if let StateType::LOOP = next_state.kind {
+                                if is_same(next_state.e, *c) {
+                                    if is_last_char && next_state.accepts {
+                                        return true;
+                                    }
+                                    curr_states[k] = true;
+                                } else {
+                                    curr_states[k] = false;
+                                }
+                            } else {
+                                if next_state.e == b'.' || next_state.e == *c {
+                                    if next_state.accepts && is_last_char {
+                                        return true;
+                                    }
+                                    if k != nfa.len() - 1 {
+                                        curr_states[k+1] = true;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
             }
-   
-        }
-  
-        //if regex instructions are not exhausted return false
-        if j+1 < regex_instructions.len() {
-            return false;
+            if is_last_char {
+                return false;
+            }
         }
         
-        return true;
-        
+        return false;
     }
-}
-fn get_instruction_vector(p: String) -> Vec<Regex> {
-    let mut regex_instructions: Vec<Regex> = Vec::new();
-    let mut temp_string: String = String::new();
-    let mut temp_buffer: char = ' ';
-    for c in p.chars() {
-        if c == '*' {
-            if !temp_string.is_empty() {
-                let r = Regex {
-                    p: temp_string.clone(),
-                    t: String::from("SINGLE"),
-                };
-                regex_instructions.push(r);
-            }
-            
-            let r = Regex {
-                p: String::from(temp_buffer.to_string()),
-                t: String::from("LOOP"),
-            };
-            regex_instructions.push(r);
-            temp_buffer = ' ';
-            temp_string = String::new();
-        } else {
-            if temp_buffer != ' ' {temp_string.push(temp_buffer)};
-            temp_buffer = c;
-        }
+    
+    pub fn is_match(s: String, p: String) -> bool {
+        let nfa = Solution::new_nfa(p.as_bytes());
+        return Solution::run_nfa(&nfa, s.as_bytes());
     }
-    if temp_buffer != ' ' {temp_string.push(temp_buffer)};
-    if !temp_string.is_empty() {
-        let r = Regex {
-            p: temp_string.clone(),
-            t: String::from("SINGLE"),
-        };
-        regex_instructions.push(r);
-    }
-    println!("{:?}", regex_instructions);
-    return regex_instructions;
-}
-
-fn main () {
-    let s = "mississippi".to_string();
-    let p = "mis*is*ip*.".to_string();
-    let r = Solution::is_match(s, p);
-    println!("{}", r);
-    // Solution::is_match(s, p);
-
 }
