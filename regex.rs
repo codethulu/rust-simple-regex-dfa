@@ -29,7 +29,6 @@ impl Solution {
                 i += 1;
             }
         }
-        
         for state in nfa.iter_mut().rev() {
             state.accepts = true;
             if let StateType::CHAR = state.kind {
