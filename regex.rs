@@ -21,7 +21,7 @@ impl Solution {
                 i += 1;
                 continue;
             }
-            if i + 1 < p.len() && p[i+1] == b'*' {
+            if i  < p.len()-1 && p[i+1] == b'*' {
                 nfa.push(State{e: p[i], accepts: false, kind: StateType::LOOP});
                 i += 2;
             } else {
