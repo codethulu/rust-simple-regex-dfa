@@ -1,5 +1,5 @@
 # Simple Regex DFA
-An alternative approach to regex checker, written in rust. The problem is hard difficulty and this implementation is faster than 100% rust solutions, but slightly crap for memory usage (this is meant to be more for fun than for performance)
+An alternative approach to regex checker, written in rust. The problem is hard difficulty and this implementation is faster than 100% rust solutions, however this approach was only written for novel purposes and in reality a dynamic approach would be much smarter and memory efficient.
 
 You can compile this simply with ``rustc regex.rs`` and run it with ``./regex``
 
