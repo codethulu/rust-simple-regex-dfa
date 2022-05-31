@@ -1,3 +1,5 @@
+use std::io;
+
 #[derive(PartialEq)]
 enum StateType {
     CHAR,
@@ -9,6 +11,7 @@ struct State {
     kind: StateType
 }
 
+struct Solution{}
 impl Solution {
     fn new_nfa(p: &[u8]) -> Vec<State> {
         let mut nfa = Vec::new();
@@ -48,22 +51,23 @@ impl Solution {
             return s.is_empty();
         } else if s.is_empty() {
             //does NFA accept empty string?
-            return (nfa[0].kind == StateType::LOOP && nfa[0].accepts);
+            return nfa[0].kind == StateType::LOOP && nfa[0].accepts;
         }
-        
         let mut curr_states = vec![false; nfa.len()];
         curr_states[0] = true;
         
         for (i, c) in s.iter().enumerate() {
-            let is_last_char = (i == s.len() - 1);
+            let is_last_char = i == s.len() - 1;
             for (j, state) in nfa.iter().enumerate().rev() {
                 if !curr_states[j] {
                     continue;
                 }
                 match state.kind {
+                    //if char, then check if char is same
                     StateType::CHAR => {
                         curr_states[j] = false;
                         if is_same(state.e, *c) {
+                            //if char is same, then set next state to true
                             if state.accepts && is_last_char {
                                 return true;
                             } 
@@ -72,6 +76,7 @@ impl Solution {
                             }
                         }
                     }
+                    //if state is a loop, then we need to check if the next state is accepting
                     StateType::LOOP => {
                         for k in j..nfa.len() {
                             let next_state = &nfa[k];
@@ -85,7 +90,7 @@ impl Solution {
                                     curr_states[k] = false;
                                 }
                             } else {
-                                if next_state.e == b'.' || next_state.e == *c {
+                                if is_same(next_state.e, *c) {
                                     if next_state.accepts && is_last_char {
                                         return true;
                                     }
@@ -111,4 +116,26 @@ impl Solution {
         let nfa = Solution::new_nfa(p.as_bytes());
         return Solution::run_nfa(&nfa, s.as_bytes());
     }
+}
+
+fn check_answer(s: &String, p: &String, expected: bool) -> bool {
+    let result:bool = Solution::is_match(s.to_string(), p.to_string());
+    return expected == result;
+}
+
+fn main () {
+    println!("Enter string: ");
+    let mut s = String::new();
+    io::stdin().read_line(&mut s).expect("Failed to read line");
+    println!("Enter pattern: ");
+    let mut p = String::new();
+    io::stdin().read_line(&mut p).expect("Failed to read line");
+    let result = check_answer(&s, &p, true);
+    if result {
+        println!("Pattern {} matches the string {}", p, s);
+    } else {
+        println!("Pattern {} does not match the string {}", p, s);
+    }
+
+
 }
